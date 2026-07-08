@@ -41,13 +41,23 @@ function CommandInput({
 
 function CommandList({
   className,
+  onWheel,
   ...props
 }: React.ComponentProps<typeof CommandPrimitive.List>) {
   return (
     <CommandPrimitive.List
       data-slot="command-list"
-      className={cn("max-h-[300px] overflow-y-auto overflow-x-hidden", className)}
+      className={cn(
+        "max-h-[300px] overflow-y-auto overflow-x-hidden overscroll-contain",
+        className,
+      )}
       {...props}
+      onWheel={(e) => {
+        // Keep wheel events inside the list — parent layouts (e.g. transactions
+        // page) scroll instead of the category picker when this bubbles.
+        e.stopPropagation()
+        onWheel?.(e)
+      }}
     />
   )
 }

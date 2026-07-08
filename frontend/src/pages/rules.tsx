@@ -504,6 +504,8 @@ function RulePacksDialog({ open, onClose }: { open: boolean; onClose: () => void
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['rules'] })
       queryClient.invalidateQueries({ queryKey: ['rule-packs'] })
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] })
       if (data.categories_created > 0) {
         queryClient.invalidateQueries({ queryKey: ['categories'] })
       }
@@ -518,10 +520,11 @@ function RulePacksDialog({ open, onClose }: { open: boolean; onClose: () => void
           t('rules.packInstalledWithCategories', {
             rules: data.installed,
             categories: data.categories_created,
+            applied: data.applied,
           }),
         )
       } else {
-        toast.success(t('rules.packInstalled', { count: data.installed }))
+        toast.success(t('rules.packInstalled', { count: data.installed, applied: data.applied }))
       }
     },
     onError: () => toast.error(t('common.error')),

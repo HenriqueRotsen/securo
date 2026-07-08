@@ -39,8 +39,8 @@ def _month_str(months_offset: int) -> str:
 
 
 @pytest.mark.asyncio
-async def test_create_budget_defaults_non_recurring(client, auth_headers, test_categories):
-    """Creating a budget without is_recurring defaults to false (backward compat)."""
+async def test_create_budget_defaults_recurring(client, auth_headers, test_categories):
+    """Creating a budget without is_recurring defaults to recurring (carries to future months)."""
     cat = test_categories[0]
     response = await client.post(
         "/api/budgets",
@@ -49,7 +49,7 @@ async def test_create_budget_defaults_non_recurring(client, auth_headers, test_c
     )
     assert response.status_code == 201
     data = response.json()
-    assert data["is_recurring"] is False
+    assert data["is_recurring"] is True
     assert float(data["amount"]) == 500.0
 
 

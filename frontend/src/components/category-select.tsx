@@ -53,6 +53,8 @@ export function CategorySelect({
     return (categories ?? []).find((c) => c.id === value)
   }, [categories, value])
 
+  const { onWheel: contentOnWheel, className: contentClassName, ...restContentProps } = contentProps ?? {}
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -86,8 +88,15 @@ export function CategorySelect({
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="w-[var(--radix-popover-trigger-width)] p-0 overflow-hidden"
-        {...contentProps}
+        className={cn(
+          "w-[var(--radix-popover-trigger-width)] p-0 overflow-hidden overscroll-contain",
+          contentClassName,
+        )}
+        {...restContentProps}
+        onWheel={(e) => {
+          e.stopPropagation()
+          contentOnWheel?.(e)
+        }}
       >
         <Command
           filter={(itemValue, search) => {

@@ -843,7 +843,7 @@ export const rules = {
   installPack: async (
     packCode: string,
     createMissingCategories = false,
-  ): Promise<{ installed: number; unresolved: number; categories_created: number }> => {
+  ): Promise<{ installed: number; unresolved: number; categories_created: number; applied: number }> => {
     const { data } = await api.post(`/rules/packs/${packCode}/install`, null, {
       params: { create_missing_categories: createMissingCategories },
     })
@@ -884,7 +884,7 @@ export const budgets = {
     const { data } = await api.post('/budgets', budget)
     return data
   },
-  update: async (id: string, budget: { amount?: number }): Promise<Budget> => {
+  update: async (id: string, budget: { amount?: number; effective_month?: string }): Promise<Budget> => {
     const { data } = await api.patch(`/budgets/${id}`, budget)
     return data
   },

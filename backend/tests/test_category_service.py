@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.category import Category
 from app.models.category_group import CategoryGroup
+from app.models.transaction import Transaction
 from app.schemas.category import CategoryCreate, CategoryUpdate
 from app.services.category_service import (
     DEFAULT_CATEGORIES_I18N,
@@ -246,6 +247,39 @@ async def test_delete_custom_category(session: AsyncSession, test_user, test_wor
     )
     assert await delete_category(session, cat.id, test_workspace.id) is True
     assert await get_category(session, cat.id, test_workspace.id) is None
+
+
+@pytest.mark.asyncio
+async def test_delete_category_unlinks_transactions(
+    session: AsyncSession, test_user, test_workspace, test_account,
+):
+    from datetime import date
+    from decimal import Decimal
+
+    cat = await create_category(
+        session,
+        test_workspace.id, test_user.id,
+        CategoryCreate(name="TemplateCat", icon="shopping-bag", color="#F97316"),
+    )
+    txn = Transaction(
+        user_id=test_user.id,
+        workspace_id=test_workspace.id,
+        account_id=test_account.id,
+        category_id=cat.id,
+        description="Test purchase",
+        amount=Decimal("10.00"),
+        date=date.today(),
+        effective_date=date.today(),
+        type="debit",
+        source="manual",
+    )
+    session.add(txn)
+    await session.commit()
+
+    assert await delete_category(session, cat.id, test_workspace.id) is True
+
+    await session.refresh(txn)
+    assert txn.category_id is None
 
 
 @pytest.mark.asyncio

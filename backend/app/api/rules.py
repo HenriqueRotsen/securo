@@ -196,11 +196,14 @@ async def install_rule_pack(
         pack_code,
         lang,
         create_missing_categories=create_missing_categories,
+        workspace_id=ctx.workspace.id,
     )
+    applied = await rule_service.apply_all_rules(session, ctx.workspace.id)
     return {
         "installed": len(result.rules),
         "unresolved": result.unresolved,
         "categories_created": result.categories_created,
+        "applied": applied,
     }
 
 

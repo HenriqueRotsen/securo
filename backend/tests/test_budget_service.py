@@ -36,7 +36,7 @@ async def test_create_budget(session: AsyncSession, test_user, test_workspace, t
     assert budget.id is not None
     assert budget.amount == Decimal("500.00")
     assert budget.month == date(2025, 3, 1)
-    assert budget.is_recurring is False
+    assert budget.is_recurring is True
 
 
 @pytest.mark.asyncio

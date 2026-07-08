@@ -141,9 +141,27 @@ RULE_PACKS = {
                 {"field": "description", "op": "contains", "value": "CARIDADE"},
             ], "actions": [{"op": "set_category", "value": "donations"}], "priority": 10},
 
-            {"name": "Pix Enviado", "conditions_op": "and", "conditions": [
-                {"field": "description", "op": "regex", "value": "PIX.*ENVIADO|PIX.*TRANSF"},
+            {"name": "Pix Enviado", "conditions_op": "or", "conditions": [
+                {"field": "description", "op": "regex", "value": "PIX.*ENVIAD"},
+                {"field": "description", "op": "contains", "value": "TRANSF ENVIADA PIX"},
             ], "actions": [{"op": "set_category", "value": "transfers"}], "priority": 50},
+
+            {"name": "YouTube Premium", "conditions_op": "or", "conditions": [
+                {"field": "description", "op": "contains", "value": "YOUTUBEPREMIUM"},
+                {"field": "description", "op": "contains", "value": "YOUTUBE PREMIUM"},
+            ], "actions": [{"op": "set_category", "value": "subscriptions"}], "priority": 10},
+
+            {"name": "Pagamento fatura cartão", "conditions_op": "or", "conditions": [
+                {"field": "description", "op": "contains", "value": "PGTO FATURA"},
+                {"field": "description", "op": "contains", "value": "PAGAMENTO FATURA"},
+                # C6 credit-card leg when paying the bill from checking (not income).
+                {"field": "description", "op": "contains", "value": "INCLUSAO DE PAGAMENTO CICLO CORRENTE"},
+            ], "actions": [{"op": "set_category", "value": "transfers"}], "priority": 50},
+
+            {"name": "Ativos B3 / FIIs", "conditions_op": "or", "conditions": [
+                {"field": "description", "op": "contains", "value": "COMPRA DE ATIVO B3"},
+                {"field": "description", "op": "regex", "value": r"\b[A-Z]{4}[0-9]{2}\b"},
+            ], "actions": [{"op": "set_category", "value": "investments"}], "priority": 15},
 
             {"name": "Estacionamento / Pedágio", "conditions_op": "or", "conditions": [
                 {"field": "description", "op": "contains", "value": "ESTACIONAMENTO"},
@@ -691,6 +709,7 @@ async def install_rule_pack(
     pack_code: str,
     lang: str = "pt-BR",
     create_missing_categories: bool = False,
+    workspace_id: Optional[uuid.UUID] = None,
 ) -> RulePackInstallResult:
     """Install a country-specific rule pack for a user. Skips rules whose name already exists.
 
@@ -710,13 +729,21 @@ async def install_rule_pack(
             session, user_id, _required_internal_keys(pack), lang
         )
 
-    result = await session.execute(select(Category).where(Category.user_id == user_id))
+    cat_query = select(Category)
+    if workspace_id is not None:
+        cat_query = cat_query.where(Category.workspace_id == workspace_id)
+    else:
+        cat_query = cat_query.where(Category.user_id == user_id)
+    result = await session.execute(cat_query)
     categories = {cat.name: str(cat.id) for cat in result.scalars().all()}
     key_to_id = _resolve_categories_by_internal_key(categories)
 
     resolved, unresolved = _build_rules_from_templates(pack["rules"], key_to_id)
 
-    existing_names = await _get_existing_rule_names(session, user_id)
+    if workspace_id is not None:
+        existing_names = await _get_existing_rule_names_for_workspace(session, workspace_id)
+    else:
+        existing_names = await _get_existing_rule_names(session, user_id)
 
     rules: list[Rule] = []
     for rule_data in resolved:
@@ -724,6 +751,7 @@ async def install_rule_pack(
             continue
         rule = Rule(
             user_id=user_id,
+            workspace_id=workspace_id,
             name=rule_data["name"],
             conditions_op=rule_data["conditions_op"],
             conditions=rule_data["conditions"],

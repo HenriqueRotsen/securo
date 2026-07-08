@@ -81,6 +81,7 @@ export default function CategoriesPage() {
   const deleteCatMutation = useMutation({
     mutationFn: (id: string) => categoriesApi.delete(id),
     onSuccess: () => { invalidateAll(); toast.success(t('categories.deleted')) },
+    onError: () => { toast.error(t('categories.deleteFailed')) },
   })
 
   const createGroupMutation = useMutation({

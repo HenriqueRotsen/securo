@@ -10,7 +10,7 @@ class BudgetCreate(BaseModel):
     category_id: uuid.UUID
     amount: Decimal
     month: _Date  # First day of month
-    is_recurring: bool = False
+    is_recurring: bool = True
 
 
 class BudgetUpdate(BaseModel):

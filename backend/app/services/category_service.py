@@ -1,10 +1,13 @@
 import uuid
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.budget import Budget
 from app.models.category import Category
+from app.models.recurring_transaction import RecurringTransaction
+from app.models.transaction import Transaction
 from app.schemas.category import CategoryCreate, CategoryUpdate
 from app.services.category_group_service import CATEGORY_TO_GROUP, create_default_groups
 
@@ -149,6 +152,30 @@ async def delete_category(
     if not category or category.is_system:
         return False
 
+    # Clear FK references so custom/template categories can be removed even
+    # when they were used in budgets, transactions, or recurring bills.
+    await session.execute(
+        delete(Budget).where(
+            Budget.workspace_id == workspace_id,
+            Budget.category_id == category_id,
+        )
+    )
+    await session.execute(
+        update(Transaction)
+        .where(
+            Transaction.workspace_id == workspace_id,
+            Transaction.category_id == category_id,
+        )
+        .values(category_id=None)
+    )
+    await session.execute(
+        update(RecurringTransaction)
+        .where(
+            RecurringTransaction.workspace_id == workspace_id,
+            RecurringTransaction.category_id == category_id,
+        )
+        .values(category_id=None)
+    )
     await session.delete(category)
     await session.commit()
     return True

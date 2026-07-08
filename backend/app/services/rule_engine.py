@@ -30,6 +30,24 @@ def _match_condition(condition: dict, tx: "Transaction") -> bool:
 
     tx_val = getattr(tx, field, None)
 
+    # Numeric operators first for amount/date so equals compares Decimals
+    # (string path would treat "160.00" != "160").
+    if field in ("amount", "date") and op in ("equals", "not_equals", "gt", "gte", "lt", "lte"):
+        tx_num = _to_decimal(tx_val)
+        val_num = _to_decimal(value)
+        if op == "equals":
+            return tx_num == val_num
+        if op == "not_equals":
+            return tx_num != val_num
+        if op == "gt":
+            return tx_num > val_num
+        if op == "gte":
+            return tx_num >= val_num
+        if op == "lt":
+            return tx_num < val_num
+        if op == "lte":
+            return tx_num <= val_num
+
     # String operators
     if op in ("contains", "not_contains", "starts_with", "ends_with", "equals", "not_equals", "regex"):
         tx_str = _normalize(str(tx_val or ""))
@@ -54,19 +72,6 @@ def _match_condition(condition: dict, tx: "Transaction") -> bool:
                 return bool(re.search(pattern, tx_str, re.IGNORECASE))
             except re.error:
                 return False
-
-    # Numeric operators
-    if op in ("gt", "gte", "lt", "lte"):
-        tx_num = _to_decimal(tx_val)
-        val_num = _to_decimal(value)
-        if op == "gt":
-            return tx_num > val_num
-        if op == "gte":
-            return tx_num >= val_num
-        if op == "lt":
-            return tx_num < val_num
-        if op == "lte":
-            return tx_num <= val_num
 
     return False
 
