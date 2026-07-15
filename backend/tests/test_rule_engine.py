@@ -89,6 +89,66 @@ def test_amount_gt_no_match():
     assert evaluate_conditions("and", conditions, tx) is False
 
 
+# --- date condition tests ---
+
+def test_date_range_and_inside():
+    """Travel-window rule: 12/07 <= date <= 19/07 matches a tx inside the range."""
+    conditions = [
+        {"field": "date", "op": "gte", "value": "2026-07-12"},
+        {"field": "date", "op": "lte", "value": "2026-07-19"},
+    ]
+    tx = make_tx(date=date(2026, 7, 15))
+    assert evaluate_conditions("and", conditions, tx) is True
+
+
+def test_date_range_and_outside():
+    """A tx outside the window must NOT match (regression: dates parsed as 0)."""
+    conditions = [
+        {"field": "date", "op": "gte", "value": "2026-07-12"},
+        {"field": "date", "op": "lte", "value": "2026-07-19"},
+    ]
+    tx = make_tx(date=date(2026, 2, 10))
+    assert evaluate_conditions("and", conditions, tx) is False
+
+
+def test_date_gte_boundary():
+    conditions = [{"field": "date", "op": "gte", "value": "2026-07-12"}]
+    assert evaluate_conditions("and", conditions, make_tx(date=date(2026, 7, 12))) is True
+    assert evaluate_conditions("and", conditions, make_tx(date=date(2026, 7, 11))) is False
+
+
+def test_date_lte_boundary():
+    conditions = [{"field": "date", "op": "lte", "value": "2026-07-19"}]
+    assert evaluate_conditions("and", conditions, make_tx(date=date(2026, 7, 19))) is True
+    assert evaluate_conditions("and", conditions, make_tx(date=date(2026, 7, 20))) is False
+
+
+def test_date_equals():
+    conditions = [{"field": "date", "op": "equals", "value": "2026-07-15"}]
+    assert evaluate_conditions("and", conditions, make_tx(date=date(2026, 7, 15))) is True
+    assert evaluate_conditions("and", conditions, make_tx(date=date(2026, 7, 16))) is False
+
+
+def test_date_not_equals():
+    conditions = [{"field": "date", "op": "not_equals", "value": "2026-07-15"}]
+    assert evaluate_conditions("and", conditions, make_tx(date=date(2026, 7, 16))) is True
+    assert evaluate_conditions("and", conditions, make_tx(date=date(2026, 7, 15))) is False
+
+
+def test_date_gt_lt():
+    gt = [{"field": "date", "op": "gt", "value": "2026-07-12"}]
+    lt = [{"field": "date", "op": "lt", "value": "2026-07-12"}]
+    assert evaluate_conditions("and", gt, make_tx(date=date(2026, 7, 13))) is True
+    assert evaluate_conditions("and", gt, make_tx(date=date(2026, 7, 12))) is False
+    assert evaluate_conditions("and", lt, make_tx(date=date(2026, 7, 11))) is True
+    assert evaluate_conditions("and", lt, make_tx(date=date(2026, 7, 12))) is False
+
+
+def test_date_invalid_value_never_matches():
+    conditions = [{"field": "date", "op": "gte", "value": "not-a-date"}]
+    assert evaluate_conditions("and", conditions, make_tx(date=date(2026, 7, 15))) is False
+
+
 def test_and_all_match():
     conditions = [
         {"field": "description", "op": "contains", "value": "UBER"},

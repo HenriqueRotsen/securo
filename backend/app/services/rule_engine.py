@@ -2,8 +2,9 @@
 import re
 import unicodedata
 import uuid
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
-from typing import TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.models.transaction import Transaction
@@ -23,6 +24,18 @@ def _to_decimal(val) -> Decimal:
         return Decimal("0")
 
 
+def _to_date(val) -> Optional[date]:
+    if isinstance(val, datetime):
+        return val.date()
+    if isinstance(val, date):
+        return val
+    try:
+        # Accept "YYYY-MM-DD" (and ISO datetimes by truncation).
+        return date.fromisoformat(str(val).strip()[:10])
+    except (ValueError, TypeError):
+        return None
+
+
 def _match_condition(condition: dict, tx: "Transaction") -> bool:
     field = condition.get("field", "")
     op = condition.get("op", "")
@@ -30,9 +43,29 @@ def _match_condition(condition: dict, tx: "Transaction") -> bool:
 
     tx_val = getattr(tx, field, None)
 
-    # Numeric operators first for amount/date so equals compares Decimals
+    # Dates must be compared as dates: the numeric path would silently turn
+    # "2026-07-12" into Decimal("0") on both sides and match every transaction.
+    if field == "date" and op in ("equals", "not_equals", "gt", "gte", "lt", "lte"):
+        tx_date = _to_date(tx_val)
+        val_date = _to_date(value)
+        if tx_date is None or val_date is None:
+            return False
+        if op == "equals":
+            return tx_date == val_date
+        if op == "not_equals":
+            return tx_date != val_date
+        if op == "gt":
+            return tx_date > val_date
+        if op == "gte":
+            return tx_date >= val_date
+        if op == "lt":
+            return tx_date < val_date
+        if op == "lte":
+            return tx_date <= val_date
+
+    # Numeric operators for amount so equals compares Decimals
     # (string path would treat "160.00" != "160").
-    if field in ("amount", "date") and op in ("equals", "not_equals", "gt", "gte", "lt", "lte"):
+    if field == "amount" and op in ("equals", "not_equals", "gt", "gte", "lt", "lte"):
         tx_num = _to_decimal(tx_val)
         val_num = _to_decimal(value)
         if op == "equals":
