@@ -647,7 +647,7 @@ async def handle_oauth_callback(
                 payee=txn_data.payee,
                 payee_id=payee_id,
                 raw_data=txn_data.raw_data,
-                category_id=category_id,
+                category_id=None,
                 installment_number=txn_data.installment_number,
                 total_installments=txn_data.total_installments,
                 installment_total_amount=txn_data.installment_total_amount,
@@ -660,8 +660,11 @@ async def handle_oauth_callback(
             session.add(transaction)
             await session.flush()
             new_tx_ids.append(transaction.id)
-            if not category_id:
-                await apply_rules_to_transaction(session, user_id, transaction)
+            # User rules take precedence; the provider category is only a
+            # fallback when no rule categorized the transaction.
+            await apply_rules_to_transaction(session, user_id, transaction)
+            if transaction.category_id is None and category_id:
+                transaction.category_id = category_id
 
             # Prefer bank-provided conversion for international transactions
             acct_currency = acc_data.currency or user_currency
@@ -1402,7 +1405,7 @@ async def sync_connection(
                     payee=txn_data.payee,
                     payee_id=sync_payee_id,
                     raw_data=txn_data.raw_data,
-                    category_id=category_id,
+                    category_id=None,
                     installment_number=txn_data.installment_number,
                     total_installments=txn_data.total_installments,
                     installment_total_amount=txn_data.installment_total_amount,
@@ -1418,8 +1421,11 @@ async def sync_connection(
                 if recurring_link is not None:
                     recurring_match_service.advance_past(recurring_link, txn_data.date)
                 new_tx_ids.append(transaction.id)
-                if not category_id:
-                    await apply_rules_to_transaction(session, user_id, transaction)
+                # User rules take precedence; the provider category is only a
+                # fallback when no rule categorized the transaction.
+                await apply_rules_to_transaction(session, user_id, transaction)
+                if transaction.category_id is None and category_id:
+                    transaction.category_id = category_id
 
                 # Prefer bank-provided conversion for international transactions
                 acct_currency = acc_data.currency or user_currency
